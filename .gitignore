@@ -35,6 +35,3 @@ Thumbs.db
 # STM32CubeIDE specific
 *.launch
 *.ioc.bak
-
-# Core dumps
-core
