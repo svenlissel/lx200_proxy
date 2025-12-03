@@ -53,20 +53,29 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+#define ENABLE_DEBUG_PRINTF 1
+
+/* Debug output macros */
+#if ENABLE_DEBUG_PRINTF >= 1
+    #define DEBUG_PRINTF(...) UART_Printf( __VA_ARGS__)
+#else
+    #define DEBUG_PRINTF(...)
+#endif
+
 void UART_Printf(UART_HandleTypeDef *huart, const char *format, ...);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
-#define ST4_WEST_Pin GPIO_PIN_12
-#define ST4_WEST_GPIO_Port GPIOB
+#define ST4_EAST_Pin GPIO_PIN_12
+#define ST4_EAST_GPIO_Port GPIOB
 #define ST4_NORTH_Pin GPIO_PIN_13
 #define ST4_NORTH_GPIO_Port GPIOB
 #define ST4_SOUTH_Pin GPIO_PIN_14
 #define ST4_SOUTH_GPIO_Port GPIOB
-#define ST4_EAST_Pin GPIO_PIN_15
-#define ST4_EAST_GPIO_Port GPIOB
+#define ST4_WEST_Pin GPIO_PIN_15
+#define ST4_WEST_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 #define ST4_PORT                GPIOB

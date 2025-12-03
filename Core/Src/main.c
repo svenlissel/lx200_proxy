@@ -19,10 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
-#include "usbd_cdc_if.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "usbd_cdc_if.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -83,7 +83,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         CDC_Transmit_FS(uart2_rx_buffer, 1);
         
         // Debug output via UART3
-        UART_Printf(UART_DEBUG, "('%c')", uart2_rx_buffer[0]);
+        DEBUG_PRINTF(UART_DEBUG, "[%c]", uart2_rx_buffer[0]);
+        if(uart2_rx_buffer[0] == '#')
+        {
+            DEBUG_PRINTF(UART_DEBUG, "\r\n");
+        }
         
         // Receive next character
         HAL_UART_Receive_IT(UART_OUT, uart2_rx_buffer, 1);
@@ -333,7 +337,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, ST4_WEST_Pin|ST4_NORTH_Pin|ST4_SOUTH_Pin|ST4_EAST_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, ST4_EAST_Pin|ST4_NORTH_Pin|ST4_SOUTH_Pin|ST4_WEST_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -342,8 +346,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ST4_WEST_Pin ST4_NORTH_Pin ST4_SOUTH_Pin ST4_EAST_Pin */
-  GPIO_InitStruct.Pin = ST4_WEST_Pin|ST4_NORTH_Pin|ST4_SOUTH_Pin|ST4_EAST_Pin;
+  /*Configure GPIO pins : ST4_EAST_Pin ST4_NORTH_Pin ST4_SOUTH_Pin ST4_WEST_Pin */
+  GPIO_InitStruct.Pin = ST4_EAST_Pin|ST4_NORTH_Pin|ST4_SOUTH_Pin|ST4_WEST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
