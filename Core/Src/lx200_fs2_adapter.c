@@ -75,8 +75,8 @@ void ProcessLX200Command_FS2(char* command)
         if(command[3] == ' ')
         {
             // all ok, send direct to FS2
-            UART_Printf(UART_OUT, command);
             UART_Printf(UART_DEBUG, "-> space ok, send to FS2\r\n");
+            UART_Printf(UART_OUT, command);
         }
         else
         {
@@ -85,8 +85,8 @@ void ProcessLX200Command_FS2(char* command)
             corrected_command[3] = ' ';
             strcpy(&corrected_command[4], &command[3]);
             
-            UART_Printf(UART_OUT, corrected_command);
             UART_Printf(UART_DEBUG, "-> space inserted, corrected: %s\r\n", corrected_command);
+            UART_Printf(UART_OUT, corrected_command);
         }
         strcpy(response, "");
     }
@@ -96,8 +96,8 @@ void ProcessLX200Command_FS2(char* command)
         if(command[3] == ' ')
         {
             // all ok, send direct to FS2
-            UART_Printf(UART_OUT, command);
             UART_Printf(UART_DEBUG, "-> space ok, send to FS2\r\n");
+            UART_Printf(UART_OUT, command);
         }
         else
         {
@@ -106,12 +106,31 @@ void ProcessLX200Command_FS2(char* command)
             corrected_command[3] = ' ';
             strcpy(&corrected_command[4], &command[3]);
             
-            UART_Printf(UART_OUT, corrected_command);
             UART_Printf(UART_DEBUG, "-> space inserted, corrected: %s\r\n", corrected_command);
+            UART_Printf(UART_OUT, corrected_command);
         }
         strcpy(response, "");
     }
-
+    else if(strncmp(command, ":MS#", 4) == 0)
+    {
+        // there is a bug in the FS2 that the MS (move to target) command is aborted -> send two times
+        UART_Printf(UART_OUT, ":MS#");
+        UART_Printf(UART_DEBUG, "-> FS2 BUGFIX, send :MS# two times\r\n");
+        volatile uint32_t count = 50 * 18000;
+        while(count--);
+        UART_Printf(UART_OUT, ":MS#");
+        strcpy(response, "");
+    }
+    else if(strncmp(command, ":Q#", 3) == 0)
+    {
+        // there is a bug in the FS2 that the Q (stop movingt) not executed -> send two times
+        UART_Printf(UART_OUT, ":Q#");
+        UART_Printf(UART_DEBUG, "-> FS2 BUGFIX, send :Q# two times\r\n");
+        volatile uint32_t count = 50 * 18000;
+        while(count--);
+        UART_Printf(UART_OUT, ":Q#");
+        strcpy(response, "");
+    }
     /* Guiding commands, will be mapped to ST4 output*/
     else if(strncmp(command, ":Mgn", 4) == 0)
     {

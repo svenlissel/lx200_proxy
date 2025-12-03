@@ -53,7 +53,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-#define ENABLE_DEBUG_PRINTF 1
+#define ENABLE_DEBUG_PRINTF 0
 
 /* Debug output macros */
 #if ENABLE_DEBUG_PRINTF >= 1
