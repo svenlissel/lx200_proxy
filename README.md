@@ -2,17 +2,49 @@
 
 STM32F103 based LX200 protocol proxy for telescope control systems.
 
+I developed this project because I had trouble connecting the large refractor telescope with FS2 mount from my astronomy club to the new, highly integrated ASI2600MC Air camera with integrated guiding sensor. It's possible to choose the FS2 driver in ASIAir, but sync, goto, and guiding do not work. This failed due to missing spaces in two commands in the "Astro Electronic FS2" and LX200 drivers. Additionally, it turned out that the guiding commands (":Mgn0500#", etc.) are not supported and must be sent through the ST4 port instead. Therefore, this proxy was developed to make LX200 commands understandable for the FS2 and to control guiding commands via the ST4 output. Set the driver to "Astro Electronic FS2" to use this proxy. Further adaptations are conceivable, e.g., controlling the FS2 via Bluetooth with Stellarium Mobile, or creating a simplified version for USB->ST4 adapter only.
+
 ## Overview
 
 ![LX200 Proxy Setup](docs/images/lx200_proxy_overview.jpg)
 
-This project implements an LX200 command proxy that sits between astronomy software and telescope mounts. The main reason for this project was that it was not possible to connect a proven FS2 mount to the ASIAir. It failed due to missing spaces in two commands in the "Astro Electronic FS2" driver and LX200 driver. Additionally, it turned out that the guiding commands ":Mgn0500# etc." are not supported and must come through the ST4 port instead. Therefore, this proxy was developed that makes the LX200 commands understandable for the FS2 and controls the guiding commands via the ST4 output. Set driver to "Astro Electronic FS2" to use this proxy. Further adaptations are conceivable, e.g. that the FS2 could be controlled via Bluetooth with Stellarium Mobile. Or a simplified version for a USB->ST4 adapter only.
+### System Architecture
+
+```
+┌──────────────┐
+│   ASIAir     │ (or other astronomy software)
+│              │
+└──────┬───────┘
+       │ USB (Virtual COM)
+       │ LX200 Protocol
+┌──────▼───────────────────────────┐
+│   LX200 Proxy (STM32F103)        │
+│  ┌────────────────────────────┐  │
+│  │  Protocol Translator       │  │
+│  │  • LX200 ↔ FS2            │  │
+│  │  • Command Parsing         │  │
+│  │  • Space Insertion         │  │
+│  └────────────────────────────┘  │
+│  ┌────────────────────────────┐  │
+│  │  ST4 Handler               │  │
+│  │  • Duration-based Guiding  │  │
+│  │  • 4 GPIO Outputs          │  │
+│  └────────────────────────────┘  │
+└────┬──────────────────────┬──────┘
+     │ UART (9600 baud)     │ ST4 (4-wire)
+     │ FS2 Protocol         │ N/S/E/W
+┌────▼──────────────────────▼──────┐
+│    FS2 Telescope Mount           │
+│                                   │
+└───────────────────────────────────┘
+```
+
 
 
 ## Hardware
 
 - **MCU**: STM32F103C8 (Blue Pill)
-- **USB**: Virtual COM Port (CDC), connection to the astronomy Software, no driver needed on Windows, Linux and ASIAR. You can set any baudrate (automatically handled)
+- **USB**: Virtual COM Port (CDC), connection to the astronomy software, no driver needed on Windows, Linux and ASIAir. You can set any baudrate (automatically handled)
 - **UART2**: Connection to FS2 telescope mount (9600 baud)
 - **UART1**: Debug output (115200 baud), can be used for flashing with the serial bootloader
 - **ST4 Interface**: 4 GPIO pins for telescope guiding (PB12-PB15)
@@ -33,7 +65,7 @@ First Prototype:
 - Duration-based guiding commands (:Mgn1000# for 1000ms north)
 - Hardware ST4 output on 5V tolerant GPIO pins
 - Open-drain outputs
-- Warning, no optocoupler is used in the simple version, be sure that the levels on mount side is max. 5V!
+- Warning: no optocoupler is used in the simple version, be sure that the levels on mount side are max. 5V!
 
 ### FS2 Adapter
 - Command translation between LX200 and FS2 protocols
@@ -46,8 +78,8 @@ First Prototype:
 - Error handling with optional system reset
 
 ### Next Features
-- support for Stellarium Mobile over Bluetooth
-- mode for simple USB -> ST4 translation (for mounts without interface)
+- Support for Stellarium Mobile over Bluetooth
+- Mode for simple USB -> ST4 translation (for mounts without interface)
 
 ## Build Requirements
 

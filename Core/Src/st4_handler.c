@@ -15,9 +15,11 @@
 /* ============================================================================
  *                         PRIVATE TYPES & STRUCTS
  * ============================================================================ */
+/* using ticktimes to be safe for race conditions with interrupts */
+/* setter functiions only sets tick time for off timepoint */
 typedef struct {
     volatile uint8_t active;
-    volatile int32_t remaining_ms;
+    volatile int32_t off_ticktime;
 } ST4_Pin_State_t;
 
 typedef struct {
@@ -31,6 +33,15 @@ typedef struct {
  *                         PRIVATE VARIABLES
  * ============================================================================ */
 static ST4_States_t st4_states = {0};
+
+#define ENABLE_DEBUG_PRINTF 0
+
+/* Debug output macros */
+#if ENABLE_DEBUG_PRINTF >= 1
+    #define DEBUG_PRINTF(...) UART_Printf( __VA_ARGS__)
+#else
+    #define DEBUG_PRINTF(...)
+#endif
 
 /* ============================================================================
  *                         PUBLIC FUNCTIONS
@@ -60,72 +71,23 @@ uint32_t st4_parse_duration(char* command)
 
 void st4_set(ST4_Direction_t direction, uint32_t duration_ms)
 {
+    uint32_t time2set = HAL_GetTick() + duration_ms;
 
     switch(direction)
     {
         case ST4_NORTH:
-            st4_states.north.remaining_ms = duration_ms;
-            if(duration_ms > 0)
-            {
-                st4_states.north.active = 1;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_NORTH_Pin, GPIO_PIN_RESET); // signal is active low
-                UART_Printf(UART_DEBUG, "ST4 North: ON for %lu ms\r\n", duration_ms);
-            }
-            else
-            {
-                st4_states.north.active = 0;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_NORTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-                UART_Printf(UART_DEBUG, "ST4 North: OFF command\r\n");
-            }
+                st4_states.north.off_ticktime = time2set;
             break;
-            
         case ST4_SOUTH:
-            st4_states.south.remaining_ms = duration_ms;
-            if(duration_ms > 0)
-            {
-                st4_states.south.active = 1;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_SOUTH_Pin, GPIO_PIN_RESET); // signal is active low
-                UART_Printf(UART_DEBUG, "ST4 South: ON for %lu ms\r\n", duration_ms);
-            }
-            else
-            {
-                st4_states.south.active = 0;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_SOUTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-                UART_Printf(UART_DEBUG, "ST4 South: OFF command\r\n");
-            }
+                st4_states.south.off_ticktime = time2set;
             break;
         case ST4_EAST:
-            st4_states.east.remaining_ms = duration_ms;
-            if(duration_ms > 0)
-            {
-                st4_states.east.active = 1;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_EAST_Pin, GPIO_PIN_RESET); // signal is active low
-                UART_Printf(UART_DEBUG, "ST4 East: ON for %lu ms\r\n", duration_ms);
-            }
-            else
-            {
-                st4_states.east.active = 0;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_EAST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-                UART_Printf(UART_DEBUG, "ST4 East: OFF command\r\n");
-            }
+                st4_states.east.off_ticktime = time2set;
             break;
         case ST4_WEST:
-            st4_states.west.remaining_ms = duration_ms;
-            if(duration_ms > 0)
-            {
-                st4_states.west.active = 1;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_WEST_Pin, GPIO_PIN_RESET); // signal is active low
-                UART_Printf(UART_DEBUG, "ST4 West: ON for %lu ms\r\n", duration_ms);
-            }
-            else
-            {
-                st4_states.west.active = 0;
-                HAL_GPIO_WritePin(ST4_PORT, ST4_WEST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-                UART_Printf(UART_DEBUG, "ST4 West: OFF command\r\n");
-            }
-            break;            
+                st4_states.west.off_ticktime = time2set;
+            break;     
         default:
-
             return;
     }
 }
@@ -135,54 +97,75 @@ void st4_set(ST4_Direction_t direction, uint32_t duration_ms)
  * ---------------------------------------------------------------------------- */
 void st4_process(void)
 {
-    // Check each 10ms if one of the 4 ST4 GPIO pins should be still active low
-    // IMPORTANT: This function runs not in interrupt context, so __disable_irq() is needed
-     __disable_irq();
+    int32_t remaining_ticks;
+    /* int32_t cast handles HAL_GetTick() overflow correctly (two's complement arithmetic) */
+    /* Race condition safe: interrupt only writes off_ticktime, process only reads it atomically */
 
-    // North pin
-    if(st4_states.north.active && st4_states.north.remaining_ms > 0)
+    /* North */
+    remaining_ticks = (int32_t)(st4_states.north.off_ticktime - HAL_GetTick());
+    if((!st4_states.north.active) && (remaining_ticks > 0))
     {
-        st4_states.north.remaining_ms-=10;
-        if(st4_states.north.remaining_ms <= 0)
-        {
-            st4_states.north.active = 0;
-            HAL_GPIO_WritePin(ST4_PORT, ST4_NORTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-            UART_Printf(UART_DEBUG, "ST4 North: OFF\r\n");
-        }
+        //turn on!
+        st4_states.north.active = 1;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_NORTH_Pin, GPIO_PIN_RESET); // signal is active low
+        DEBUG_PRINTF(UART_DEBUG, "ST4 North: ON %dms\r\n", remaining_ticks);
     }
-    // South pin
-    if(st4_states.south.active && st4_states.south.remaining_ms > 0)
+    else if((st4_states.north.active) && (remaining_ticks <= 0))
     {
-        st4_states.south.remaining_ms-=10;
-        if(st4_states.south.remaining_ms <= 0)
-        {
-            st4_states.south.active = 0;
-            HAL_GPIO_WritePin(ST4_PORT, ST4_SOUTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-            UART_Printf(UART_DEBUG, "ST4 South: OFF\r\n");
-        }
-    }
-    // East pin
-    if(st4_states.east.active && st4_states.east.remaining_ms > 0)
-    {
-        st4_states.east.remaining_ms-=10;
-        if(st4_states.east.remaining_ms <= 0)
-        {
-            st4_states.east.active = 0;
-            HAL_GPIO_WritePin(ST4_PORT, ST4_EAST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-            UART_Printf(UART_DEBUG, "ST4 East: OFF\r\n");
-        }
-    }
-    // West pin
-    if(st4_states.west.active && st4_states.west.remaining_ms > 0)
-    {
-        st4_states.west.remaining_ms-=10;
-        if(st4_states.west.remaining_ms <= 0)
-        {
-            st4_states.west.active = 0;
-            HAL_GPIO_WritePin(ST4_PORT, ST4_WEST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
-            UART_Printf(UART_DEBUG, "ST4 West: OFF\r\n");
-        }
+        // switch off!
+        st4_states.north.active = 0;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_NORTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
+        DEBUG_PRINTF(UART_DEBUG, "ST4 North: OFF\r\n");
     }
 
-    __enable_irq();
+    /* South */
+    remaining_ticks = (int32_t)(st4_states.south.off_ticktime - HAL_GetTick());
+    if((!st4_states.south.active) && (remaining_ticks > 0))
+    {
+        //turn on!
+        st4_states.south.active = 1;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_SOUTH_Pin, GPIO_PIN_RESET); // signal is active low
+        DEBUG_PRINTF(UART_DEBUG, "ST4 South: ON %dms\r\n", remaining_ticks);
+    }
+    else if((st4_states.south.active) && (remaining_ticks <= 0))
+    {
+        // switch off!
+        st4_states.south.active = 0;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_SOUTH_Pin, GPIO_PIN_SET); // set to floating (high impedance)
+        DEBUG_PRINTF(UART_DEBUG, "ST4 South: OFF\r\n");
+    }
+
+    /* East */
+    remaining_ticks = (int32_t)(st4_states.east.off_ticktime - HAL_GetTick());
+    if((!st4_states.east.active) && (remaining_ticks > 0))
+    {
+        //turn on!
+        st4_states.east.active = 1;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_EAST_Pin, GPIO_PIN_RESET); // signal is active low
+        DEBUG_PRINTF(UART_DEBUG, "ST4 East: ON %dms\r\n", remaining_ticks);
+    }
+    else if((st4_states.east.active) && (remaining_ticks <= 0))
+    {
+        // switch off!
+        st4_states.east.active = 0;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_EAST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
+        DEBUG_PRINTF(UART_DEBUG, "ST4 East: OFF\r\n");
+    }
+
+    /* West */
+    remaining_ticks = (int32_t)(st4_states.west.off_ticktime - HAL_GetTick());
+    if((!st4_states.west.active) && (remaining_ticks > 0))
+    {
+        //turn on!
+        st4_states.west.active = 1;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_WEST_Pin, GPIO_PIN_RESET); // signal is active low
+        DEBUG_PRINTF(UART_DEBUG, "ST4 West: ON %dms\r\n", remaining_ticks);
+    }
+    else if((st4_states.west.active) && (remaining_ticks <= 0))
+    {
+        // switch off!
+        st4_states.west.active = 0;
+        HAL_GPIO_WritePin(ST4_PORT, ST4_WEST_Pin, GPIO_PIN_SET); // set to floating (high impedance)
+        DEBUG_PRINTF(UART_DEBUG, "ST4 West: OFF\r\n");
+    }
 }

@@ -161,7 +161,7 @@ int main(void)
   {
     st4_process();
     toogleLED_callback();
-    HAL_Delay(10);
+    HAL_Delay(1);
 
     /* USER CODE END WHILE */
 
@@ -350,6 +350,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = ST4_EAST_Pin|ST4_NORTH_Pin|ST4_SOUTH_Pin|ST4_WEST_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -377,7 +378,7 @@ void toogleLED_callback(void)
     ms_counter++;
 
     // Blink LED every 500ms (1 second)
-    if (ms_counter % 50 == 0)
+    if (ms_counter % 500 == 0)
     {
         HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // Built-in LED toggle
     }
